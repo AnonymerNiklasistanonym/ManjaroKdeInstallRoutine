@@ -240,6 +240,11 @@ sudo pacman -S vim grep
 
    ![KDE mouse setup](./screenshots/screenshot_20220505_200436_kde_lock_screen.png)
 
+7. Connect (Google) calendar
+
+   It is possible to sync other calendar services like Google calendar with KDE by downloading `korganizer` and additionally installing `kdepim-addons`.
+
+   In `korganizer` you can connect to the calendar service of your choice (and configure how often it should synchronize) and in the calendar widget panel settings you can now activate **PMI Events Plugin** which gives you a new subsection in this window where you can select connected calendars to make them show up in the widget.
 
 ## 8. Install programs
 
