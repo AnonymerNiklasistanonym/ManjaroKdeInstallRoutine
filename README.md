@@ -267,6 +267,8 @@ sudo pacman -S nodejs
 yay -S corectrl
 ```
 
+This will result in a much higher power usage when doing non intensive tasks so only do it if you actually see a difference in performance or only enable it while you need high performance.
+
 ### Microphone noise cancelling
 
 ```sh
