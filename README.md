@@ -253,6 +253,8 @@ sudo pacman -S vim grep
    To do this you need to download the app [KDE Connect](https://kdeconnect.kde.org/) for your smartphone and then pair it with your KDE installation by starting the preinstalled *KDE Connect* program.
    Now you can on your smartphone add notification, storage access and more which in turn makes it able to for example access your phone storage in the default file manager and the notifications next to the other notifications.
 
+   You can even configure it to share the clipboard contents (you copy text on your desktop and can paste it on your phone or do it in the opposite direction).
+
 9. Connect a printer
 
    It is possible to easily connect printers to KDE and manage them in the system settings after installing the `manjaro-printer` package group.
