@@ -253,7 +253,37 @@ sudo pacman -S vim grep
    To do this you need to download the app [KDE Connect](https://kdeconnect.kde.org/) for your smartphone and then pair it with your KDE installation by starting the preinstalled *KDE Connect* program.
    Now you can on your smartphone add notification, storage access and more which in turn makes it able to for example access your phone storage in the default file manager and the notifications next to the other notifications.
 
+9. Connect a printer
+
+   It is possible to easily connect printers to KDE and manage them in the system settings after installing the `manjaro-printer` package group.
+
+   ```sh
+   sudo pacman -S manjaro-printer
+   ```
+
+   To enable the print service you can either make it run only temporarily or even permanently enable the service after the next reboot.
+
+   ```sh
+   # Optionally enable permanent the print service
+   sudo systemctl enable cups.service
+   # Start the print service
+   # (works only temporarily without the previous command)
+   sudo systemctl start cups.service
+   ```
+
+   After this step you can open the system settings and go to the *Printers* section.
+   For example your network printer should automatically be listed after clicking *Add Printer* and drivers are also either selected automatically or you need to select one manually out of a list of available drivers (the printer name should match the series and driverless often has less options than other options).
+
+   After installing the driver other programs should be able to find the connected printers.
+
 ## 8. Install programs
+
+### Printing
+
+```sh
+# Scan pages to images/PDF files
+sudo pacman -S gscan2pdf
+```
 
 ### General runtimes
 
