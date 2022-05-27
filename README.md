@@ -246,6 +246,13 @@ sudo pacman -S vim grep
 
    In `korganizer` you can connect to the calendar service of your choice (and configure how often it should synchronize) and in the calendar widget panel settings you can now activate **PMI Events Plugin** which gives you a new subsection in this window where you can select connected calendars to make them show up in the widget.
 
+8. Connect a smartphone
+
+   It is possible to connect a smartphone and some of its functionality (like storage and notification access) out of the box.
+
+   To do this you need to download the app [KDE Connect](https://kdeconnect.kde.org/) for your smartphone and then pair it with your KDE installation by starting the preinstalled *KDE Connect* program.
+   Now you can on your smartphone add notification, storage access and more which in turn makes it able to for example access your phone storage in the default file manager and the notifications next to the other notifications.
+
 ## 8. Install programs
 
 ### General runtimes
