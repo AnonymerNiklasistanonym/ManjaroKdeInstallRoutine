@@ -278,6 +278,18 @@ sudo pacman -S vim grep
 
    After installing the driver other programs should be able to find the connected printers.
 
+10. Configure Virtual Desktops
+
+   In the system settings under the section *Virtual Desktops* you can configure the layout (rows/columns), number and switch animation of desktops.
+
+   You can also set custom keyboard shortcuts for easy switching between the desktops.
+   For that you search in the system settings for *Shortcuts* and then go to the section *KWin*.
+
+   When you for example set up 1 row with 3 columns and you want some keybindings to go easily to the next/previous desktop you can set:
+
+   - *Switch to next Desktop*: `Ctrl` + `Alt` + `Left Arrow`
+   - *Switch to previous Desktop*: `Ctrl` + `Alt` + `Right Arrow`
+
 ## 8. Install programs
 
 ### Printing
