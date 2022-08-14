@@ -354,3 +354,8 @@ yay -S goverlay
 #   directions
 yay -S onedrive-abraunegg
 ```
+
+## More
+
+- To get a "boot" screen where you can switch kernels or do more advanced stuff before actually launching Manjaro/*the Linux kernel* you need to hold the `SHIFT` key after the BIOS prompt
+  - This can be helpful if for example an external hard drive is not detected any more but was detected on a previous Linux kernel
