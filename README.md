@@ -2,7 +2,7 @@
 
 Step by step description on how to setup Manjaro KDE.
 
----
+---pacman -S pipewire-alsa pipewire-audio pipewire-docs pipewire-jack pipewire-media-session pipewire-pulse
 
 IMPORTANT: THERE IS NO GUARANTEE THAT NOTHING GOES WRONG SO BE CAREFUL AND IF YOU ARE UNSURE RESEARCH WHAT A CERTAIN STEP MEANS!
 
@@ -362,10 +362,7 @@ To enable Wayland check [this article](https://community.kde.org/Plasma/Wayland/
 - On NVIDIA GPUs the kernel parameter `nvidia_drm.modeset=1` needs to be added when the Wayland session does not work out of the box (and `sudo cat /sys/module/nvidia_drm/parameters/modeset` returns `N`)
   - To do this edit the grub file (`/etc/default/grub`) and update the line `GRUB_CMDLINE_LINUX="nvidia_drm.modeset=1"`, then run `sudo update-grub`
 - On the login screen select `Wayland session`
-
-Current Problems:
-
-- GitHub Desktop does not work any more
+- To capture video with `obs` install the necessary pipewire packages (`pacman -S pipewire-alsa pipewire-audio pipewire-docs pipewire-jack pipewire-media-session pipewire-pulse`) and from the Qt wayland plugins for wayland (`pacman -S qt5-wayland`, `yay -S qt6-wayland`)
 
 ## More
 
