@@ -355,6 +355,18 @@ yay -S goverlay
 yay -S onedrive-abraunegg
 ```
 
+## Wayland
+
+To enable Wayland check [this article](https://community.kde.org/Plasma/Wayland/Nvidia):
+
+- On NVIDIA GPUs the kernel parameter `nvidia_drm.modeset=1` needs to be added when the Wayland session does not work out of the box (and `sudo cat /sys/module/nvidia_drm/parameters/modeset` returns `N`)
+  - To do this edit the grub file (`/etc/default/grub`) and update the line `GRUB_CMDLINE_LINUX="nvidia_drm.modeset=1"`, then run `sudo update-grub`
+- On the login screen select `Wayland session`
+
+Current Problems:
+
+- GitHub Desktop does not work any more
+
 ## More
 
 - To get a "boot" screen where you can switch kernels or do more advanced stuff before actually launching Manjaro/*the Linux kernel* you need to hold the `SHIFT` key after the BIOS prompt
