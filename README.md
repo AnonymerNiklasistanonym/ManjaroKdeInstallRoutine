@@ -364,6 +364,8 @@ To enable Wayland check [this article](https://community.kde.org/Plasma/Wayland/
 - On the login screen select `Wayland session`
 - To capture video with `obs` install the necessary pipewire packages (`pacman -S pipewire-alsa pipewire-audio pipewire-docs pipewire-jack pipewire-media-session pipewire-pulse`) and from the Qt wayland plugins for wayland (`pacman -S qt5-wayland`, `yay -S qt6-wayland`)
 
+> If there are still problems with the Wayland session try adding `nvidia-drm.fbdev=1` (`GRUB_CMDLINE_LINUX="nvidia_drm.modeset=1 nvidia-drm.fbdev=1"`) [Manjaro Forum Reply](https://forum.manjaro.org/t/testing-update-2024-05-14-linux-firmware-mkinitcpio-php-plymouth/161487/7?u=niklas616)
+
 ## More
 
 - To get a "boot" screen where you can switch kernels or do more advanced stuff before actually launching Manjaro/*the Linux kernel* you need to hold the `SHIFT` key after the BIOS prompt
