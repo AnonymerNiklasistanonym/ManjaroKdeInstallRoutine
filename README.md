@@ -367,6 +367,42 @@ To enable Wayland check [this article](https://community.kde.org/Plasma/Wayland/
 > If there are still problems with the Wayland session try adding `nvidia-drm.fbdev=1` (`GRUB_CMDLINE_LINUX="nvidia_drm.modeset=1 nvidia-drm.fbdev=1"`) [Manjaro Forum Reply](https://forum.manjaro.org/t/testing-update-2024-05-14-linux-firmware-mkinitcpio-php-plymouth/161487/7)
 > Additionally you may need to edit (`sudo vim `) `/etc/mkinitcpio.conf` and update the line `HOOKS(...)` or `MODULES(...)` with additional entries (e.g. `MODULES=(nvidia nvidia_modeset nvidia_uvm nvidia_drm)`) and then run `sudo mkinitcpio -P`.
 
+## VPNs
+
+### (KDE) OpenVPN (`.ovpn`)
+
+If the connection always fails (without error message) enter `journalctl -f` and then check the output after trying to connect once more.
+If this shows errors that try to invoke a `tun` module enter `modinfo tun` in the terminal and check if `modinfo: ERROR: Module tun not found` is the output.
+To make sure it's available you need to enable it:
+
+```sh
+# [OPTIONAL] Verify that the module is in your kernel:
+$ ls /lib/modules/$(uname -r)/kernel/drivers/net
+$ ls /dev/net/tun
+# Enable available tun kernel module
+$ sudo modprobe tun
+# [OPTIONAL] Check if it's loaded
+$ modinfo tun
+$ lsmod | grep tun
+```
+
+If this doesn't work try to install the fitting Linux headers and reboot once:
+
+```sh
+# Get current kernel version and install the headers
+$ uname -r
+6.14.3-1-MANJARO
+$ sudo pacman -S linux614-headers
+# REBOOT
+$ sudo reboot
+```
+
+It's also possible to permanently load the module on every start by adding it to the module list:
+
+```sh
+echo tun | sudo tee -a /etc/modules-load.d/tun.conf
+```
+
 ## More
 
 - To get a "boot" screen where you can switch kernels or do more advanced stuff before actually launching Manjaro/*the Linux kernel* you need to hold the `SHIFT` key after the BIOS prompt
