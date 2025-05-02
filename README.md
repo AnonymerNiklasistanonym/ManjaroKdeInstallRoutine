@@ -403,6 +403,39 @@ It's also possible to permanently load the module on every start by adding it to
 echo tun | sudo tee -a /etc/modules-load.d/tun.conf
 ```
 
+## Services
+
+### `systemd`
+
+Sometimes programs (e.g. Docker) are managed by a `systemd` integration meaning they for example auto start on login or when they crash.
+
+```sh
+# Enable autostart at boot
+sudo systemctl enable docker
+# Disable autostart at boot
+sudo systemctl disable docker
+# Start the service
+sudo systemctl start docker
+# Stop the service
+sudo systemctl stop docker
+# Restart the service
+sudo systemctl restart docker
+# Check current status
+sudo systemctl status docker
+# Check if enabled on boot
+sudo systemctl is-enabled docker
+```
+
+### `dbus`
+
+Sometimes programs (e.g. Nextcloud) are managed by a `dbus` integration instead of `systemd` meaning they for example auto restart after you close them.
+To stop this you need to do the following:
+
+```sh
+sudo mv /usr/share/dbus-1/services/com.nextcloudgmbh.Nextcloud.service /usr/share/dbus-1/services/com.nextcloudgmbh.Nextcloud.service.disabled
+# Then close/kill the program and it won't automatically restart
+```
+
 ## More
 
 - To get a "boot" screen where you can switch kernels or do more advanced stuff before actually launching Manjaro/*the Linux kernel* you need to hold the `SHIFT` key after the BIOS prompt
