@@ -328,6 +328,14 @@ This will result in a much higher power usage when doing non intensive tasks so 
 yay -S noisetorch
 ```
 
+### Camera controls
+
+```sh
+# You can configure camera zoom, focus etc. with a desktop UI that also has a preview window
+# This for example is able to change the camera zoom while being in a Zoom video call
+sudo pacman -S cameractrls
+```
+
 ### Gaming
 
 ```sh
