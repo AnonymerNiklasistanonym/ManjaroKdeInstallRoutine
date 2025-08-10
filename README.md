@@ -365,6 +365,11 @@ yay -S onedrive-abraunegg
 
 ## Wayland
 
+> [!Tip]
+> Nowadays it should just work out of the box.
+> Just don't forget to change the session on the bottom left.
+> Wayland does not only offer more performance but can offer additional functionality like touch display gestures and pen/tablet support depending on your hardware.
+
 To enable Wayland check [this article](https://community.kde.org/Plasma/Wayland/Nvidia):
 
 - On NVIDIA GPUs the kernel parameter `nvidia_drm.modeset=1` needs to be added when the Wayland session does not work out of the box (and `sudo cat /sys/module/nvidia_drm/parameters/modeset` returns `N`)
@@ -448,3 +453,128 @@ sudo mv /usr/share/dbus-1/services/com.nextcloudgmbh.Nextcloud.service /usr/shar
 
 - To get a "boot" screen where you can switch kernels or do more advanced stuff before actually launching Manjaro/*the Linux kernel* you need to hold the `SHIFT` key after the BIOS prompt
   - This can be helpful if for example an external hard drive is not detected any more but was detected on a previous Linux kernel
+
+## Encryption
+
+A LUKS encrypted drive Linux drive stores the actual filesystem inside an **encrypted LUKS container**:
+
+- Boot:
+  - GRUB bootloader stage (if `/boot` is encrypted):
+    - The GRUB bootloader is the software that loads the Linux kernel
+    - GRUB needs to unlock the **encrypted LUKS container** holding the kernel and initramfs before it can load them
+  - Initramfs stage
+    - The initramfs (early boot environment) is used as the first root filesystem and then used to mount the real filesystem with all the data
+    - The unlocks the root filesystem using your passphrase or a keyfile
+    - On Manjaro, `/crypto_keyfile.bin` is embedded in the initramfs and stored inside the encrypted root, allowing it to unlock other drives automatically
+    - This keyfile is added to the LUKS keyslots of any additional drives you want to unlock without retyping your password
+  - Systemd stage
+    - `/etc/crypttab`: what to unlock
+    - `/etc/fstab`: what to mount
+
+### Add an additional drive to automatically decrypt and mount on start
+
+1. Identify the new encrypted drive
+   - Run:
+
+     ```sh
+     sudo blkid
+     # The following is the output for a 3 different nvme drives:
+     # /dev/nvme0n1 → partitions like nvme0n1p1 (New drive [encrypted])
+     # /dev/nvme1n1 → partitions like nvme1n1p1, nvme1n1p2, nvme1n1p3, nvme1n1p4 (Manjaro drive [encrypted])
+     # /dev/nvme2n1 → partitions like nvme2n1p1, nvme2n1p2 (Windows 11 drive)
+     ```
+
+     This returns `/dev/<device>: KEY="value" KEY="value" ...`:
+
+     - `/dev/<device>`: device name
+     - Common `KEY`s:
+       - `UUID`: filesystem or partition unique identifier
+       - `UUID_SUB`: for multi-device filesystems like Btrfs
+       - `BLOCK_SIZE`: filesystem block size (smallest unit of data storage)
+       - `TYPE`: filesystem type (e.g. `ext4`, `vfat`, `ntfs`, `crypto_LUKS`).
+       - `PARTUUID`: partition UUID from the partition table
+       - `PARTLABEL`: human-readable partition label
+
+     ```text
+     /dev/mapper/luks-fdafce73-7820-4b7c-951b-a5118221fd82: UUID="4f354c10-a98c-4ab3-8c9b-24fc47f4f32a" UUID_SUB="997b0476-6b57-4e2d-ab11-782f0b43f158" BLOCK_SIZE="4096" TYPE="btrfs"
+     /dev/nvme0n1p1: UUID="fdafce73-7820-4b7c-951b-a5118221fd82" TYPE="crypto_LUKS" PARTUUID="6fd3a22d-d038-4a34-97a3-b48a022bf759"
+     /dev/nvme2n1p2: UUID="2b42ed68-695e-40de-89a9-5529c6443177" TYPE="crypto_LUKS" PARTLABEL="root" PARTUUID="4f28b7b0-dffd-cf4d-aba2-5ace144cd80a"
+     /dev/nvme2n1p1: UUID="794A-9731" BLOCK_SIZE="512" TYPE="vfat" PARTUUID="3c72ba79-1956-cf44-9f6f-6a3db6c34a57"
+     /dev/mapper/luks-2b42ed68-695e-40de-89a9-5529c6443177: UUID="28ded8b9-5fef-4e19-a03d-d0a72520a007" BLOCK_SIZE="4096" TYPE="ext4"
+     /dev/nvme1n1p4: BLOCK_SIZE="512" UUID="F82258162257D7E8" TYPE="ntfs" PARTUUID="1842f274-e3aa-4ed9-b087-c8be347247fa"
+     /dev/nvme1n1p2: PARTLABEL="Microsoft reserved partition" PARTUUID="86fdde4d-d705-4e25-99a0-387e273cb8d3"
+     /dev/nvme1n1p3: BLOCK_SIZE="512" UUID="6E46888C4688572D" TYPE="ntfs" PARTLABEL="Basic data partition" PARTUUID="98d7eafa-9f89-4aae-834a-3395b0522581"
+     /dev/nvme1n1p1: UUID="BE87-AD66" BLOCK_SIZE="512" TYPE="vfat" PARTLABEL="EFI system partition" PARTUUID="a5e02ca4-2859-4145-9766-478f9e8d07e8"
+     ```
+
+     In this case we see the line `/dev/nvme0n1p1: UUID="fdafce73-7820-4b7c-951b-a5118221fd82" TYPE="crypto_LUKS"` which tells us that the drive `/dev/nvme0n1p1` is encrypted using `LUKS`.
+
+     If we now search for the `UUID` we see that this **encrypted LUKS container** contains the mounted filesystem `/dev/mapper/luks-fdafce73-7820-4b7c-951b-a5118221fd82: UUID="4f354c10-a98c-4ab3-8c9b-24fc47f4f32a" TYPE="btrfs"` which is of the type `btrfs`.
+
+2. Tell Manjaro/`systemd` how to unlock the drive
+
+   - If you look at the file `/etc/crypttab`:
+
+     ```text
+     # ...
+     # <name>               <device>                         <password> <options>
+     luks-2b42ed68-695e-40de-89a9-5529c6443177 UUID=2b42ed68-695e-40de-89a9-5529c6443177     /crypto_keyfile.bin luks
+     ```
+
+     You can see that the file `/crypto_keyfile.bin` is used to store the decryption passwords.
+
+   - With the following command you can add the encrpytion password to the new drive (`/dev/nvme0n1p1`) to it:
+
+     ```sh
+     # Asks you first for the current passphrase, then the device passphrase
+     sudo cryptsetup luksAddKey /dev/nvme0n1p1 /crypto_keyfile.bin
+     ```
+
+3. Tell Manjaro/`systemd` how to mount the drive
+
+   - Now that the drive is unlocked you still need to mount it somewhere
+   - Create new mountpoint:
+
+     ```sh
+     # Create the mountpoint 'data_drive_2025'
+     sudo mkdir -p /mnt/data_drive_2025
+     ```
+
+   - Add the mountpoint to `/etc/fstab`:
+
+     ```sh
+     sudo vim /etc/fstab
+     ```
+
+     To the existing file:
+
+
+     ```text
+     # /etc/fstab: static file system information.
+     #
+     # Use 'blkid' to print the universally unique identifier for a device; this may
+     # be used with UUID= as a more robust way to name devices that works even if
+     # disks are added and removed. See fstab(5).
+     #
+     # <file system>             <mount point>  <type>  <options>  <dump>  <pass>
+     UUID=794A-9731                            /boot/efi      vfat    umask=0077 0 2
+     /dev/mapper/luks-2b42ed68-695e-40de-89a9-5529c6443177 /              ext4    defaults,noatime 0 1
+     /swapfile                                 swap           swap    defaults,noatime 0 0
+     tmpfs                                     /tmp           tmpfs   defaults,noatime,mode=1777 0 0
+     ```
+
+     Add the line:
+
+     ```text
+     # <file system>             <mount point>  <type>  <options>  <dump>  <pass>
+     # currently decrypted mounted filesystem UUID
+     #                           the created mounting point
+     #                                          mounted filesystem type
+     #                                                  default options
+     #                                                             default (0), don't backup filesystem
+     #                                                                      default (0), don't run filesystem check
+     UUID=4f354c10-a98c-4ab3-8c9b-24fc47f4f32a  /mnt/data_drive_2025  btrfs  defaults  0  0
+     ```
+
+Now when restarting your PC it will automatically decrypt the encrypted drive and mount the read filesystem at `/mnt/data_drive_2025`.
+If your drive is not encrypted you can just follow step 3.
