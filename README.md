@@ -578,3 +578,55 @@ A LUKS encrypted drive Linux drive stores the actual filesystem inside an **encr
 
 Now when restarting your PC it will automatically decrypt the encrypted drive and mount the read filesystem at `/mnt/data_drive_2025`.
 If your drive is not encrypted you can just follow step 3.
+
+## Display Scaling
+
+### Login Screen (SDDM) Scaling
+
+Assuming you have a 4K display connected it can happen that your login screen looks tiny since it isn't scaled (like 200% on your actual plasma session).
+
+1. Solution: Ugly but screen specific
+
+   - Assuming you have the following displays connected identify your screen name (e.g. `DP-2`):
+
+     ```sh
+     xrandr | grep " connected"
+     HDMI-A-1 connected 1080x1920+2560+0 right (normal left inverted right x axis y axis) 531mm x 299mm
+     DP-2 connected primary 2560x1440+0+328 (normal left inverted right x axis y axis) 544mm x 303mm
+     ```
+
+   - and then specify the scale:
+
+    ```sh
+    sudo vim /usr/share/sddm/scripts/Xsetup
+    ```
+
+    ```sh
+    #!/bin/sh
+    # Xsetup - run as root before the login dialog appears
+    # Scale everything twice as big
+    xrandr --output DP-2 --scale 0.5x0.5
+    ```
+
+    This will look rather blurry and not sharp since the image is scaled after the rendering and not during the rendering!
+
+2. Solution: Sharp but not screen specific
+
+   - By creating a new SDDM configuration with the following content ([source: kalzEOS](https://www.reddit.com/r/kde/comments/1bahvog/fix_sddm_on_hidpi_screens_on_plasma_6/)):
+
+     ```sh
+     sudo vim /etc/sddm.conf.d/hidpi.conf
+     ```
+
+     ```text
+     [Wayland]
+     EnableHiDPI=true
+
+     [X11]
+     EnableHiDPI=true
+
+     [General]
+     GreeterEnvironment=QT_SCREEN_SCALE_FACTORS=2,QT_FONT_DPI=192
+     ```
+
+     The login screen will now be scaled times 2 during the rendering, but this will happen for all screens so if you have different resolutions this may look bad on lower resolution screens.
