@@ -206,6 +206,12 @@ sudo pacman -S make pkgconf patch cmake gcc clang
 sudo pacman -S vim grep
 ```
 
+To enable flatpaks in e.g. `pamac` [follow the official Manjaro instructions](https://wiki.manjaro.org/index.php/Flatpak) (and logout, login again for changes to be applied sometimes):
+
+```sh
+pamac install flatpak libpamac-flatpak-plugin
+```
+
 ## 7. Configure KDE
 
 ---
@@ -379,6 +385,14 @@ To enable Wayland check [this article](https://community.kde.org/Plasma/Wayland/
 
 > If there are still problems with the Wayland session try adding `nvidia-drm.fbdev=1` (`GRUB_CMDLINE_LINUX="nvidia_drm.modeset=1 nvidia-drm.fbdev=1"`) [Manjaro Forum Reply](https://forum.manjaro.org/t/testing-update-2024-05-14-linux-firmware-mkinitcpio-php-plymouth/161487/7)
 > Additionally you may need to edit (`sudo vim `) `/etc/mkinitcpio.conf` and update the line `HOOKS(...)` or `MODULES(...)` with additional entries (e.g. `MODULES=(nvidia nvidia_modeset nvidia_uvm nvidia_drm)`) and then run `sudo mkinitcpio -P`.
+
+> Instead of adding these lines directly to the `/etc/defaults/grub` file rather create a file with the NVIDIA specific changes like `/etc/modprobe.d/nvidia.conf`:
+>
+> ```sh
+> options nvidia_drm modeset=1 fbdev=1
+> ```
+>
+> This also means you do not need to update `grub`.
 
 ## VPNs
 
@@ -562,9 +576,9 @@ A LUKS encrypted drive Linux drive stores the actual filesystem inside an **encr
      /swapfile                                 swap           swap    defaults,noatime 0 0
      tmpfs                                     /tmp           tmpfs   defaults,noatime,mode=1777 0 0
      ```
-
+    
      Add the line:
-
+    
      ```text
      # <file system>             <mount point>  <type>  <options>  <dump>  <pass>
      # currently decrypted mounted filesystem UUID
@@ -621,12 +635,364 @@ Assuming you have a 4K display connected it can happen that your login screen lo
      ```text
      [Wayland]
      EnableHiDPI=true
-
+     
      [X11]
      EnableHiDPI=true
-
+     
      [General]
      GreeterEnvironment=QT_SCREEN_SCALE_FACTORS=2,QT_FONT_DPI=192
      ```
 
      The login screen will now be scaled times 2 during the rendering, but this will happen for all screens so if you have different resolutions this may look bad on lower resolution screens.
+
+## Swap File
+
+Using a swap file the system memory can be stored on your disk so you can completely shut down your PC (*hibernate*) and can then on the next normal start load it to be right back where you left.
+
+> [!Warning]
+>
+> Depending on your hardware this can either work, work in parts or work not at all.
+> On 2 test systems it worked perfectly fine on one (i5 6500 and GTX 1650) while only working in parts on the other (7800X3D and RTX 3060TI).
+
+1. Create swap file (https://wiki.manjaro.org/index.php/Swap)
+
+   Your swap file should have a certain size depending on your RAM size accoring to the Manjaro Wiki:
+
+   ```text
+          RAM   No hibernation    With Hibernation  Maximum
+       8GB              3GB                11GB     16GB
+      16GB              4GB                20GB     32GB
+      32GB              6GB                38GB     64GB
+      64GB              8GB                72GB    128GB
+   ```
+
+   > You should also calculate the video card memory into the size of your swap file ([i.e. at least 5 percent more than the sum of the memory capacities of all NVIDIA GPUs](https://wiki.archlinux.org/title/NVIDIA/Tips_and_tricks)):
+   >
+   > ```sh
+   > nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits
+   > ```
+
+   If you have a swapfile that is too small you can remove it using:
+
+   ```sh
+   sudo swapoff /swapfile
+   sudo rm /swapfile
+   ```
+
+   Create a swapfile and make it only readable and writable by root:
+
+   ```sh
+   # For 32GB of RAM 38GB was chosen in this instance
+   sudo dd if=/dev/zero of=/swapfile bs=1M count=38912 status=progress
+   sudo chmod 600 /swapfile
+   ```
+
+   Format and enable the swapfile:
+
+   ```sh
+   sudo mkswap /swapfile
+   sudo swapon /swapfile
+   # Setting up swapspace version 1, size = 38 GiB (40802185216 bytes)
+   # no label, UUID=906f88f0-1edc-4b44-ab7f-089d6e522696
+   ```
+
+   Verify that the swap file was enabled correctly:
+
+   ```sh
+   swapon
+   # NAME      TYPE SIZE   USED PRIO
+   # /swapfile file  38G 601,7M   -2
+   ```
+
+2. Ensure that the swapfile is available at boot
+
+   Add entry to `/etc/fstab` (`/swapfile none swap defaults 0 0`):
+
+   ```sh
+   sudo nano /etc/fstab
+   ```
+
+   Example of the updated file:
+
+   ```text
+   # /etc/fstab: static file system information.
+   #
+   # Use 'blkid' to print the universally unique identifier for a device; this may
+   # be used with UUID= as a more robust way to name devices that works even if
+   # disks are added and removed. See fstab(5).
+   #
+   # <file system>             <mount point>  <type>  <options>  <dump>  <pass>
+   UUID=794A-9731                            /boot/efi      vfat    umask=0077 0 2
+   /dev/mapper/luks-2b42ed68-695e-40de-89a9-5529c6443177 /              ext4    defaults,noatime 0 1
+   tmpfs                                     /tmp           tmpfs   defaults,noatime,mode=1777 0 0
+   UUID=4f354c10-a98c-4ab3-8c9b-24fc47f4f32a  /mnt/data_drive_2025  btrfs  defaults  0  0
+   /swapfile                                 none           swap    defaults 0 0
+   ```
+
+   > [!Warning]
+   > Apparently this is not always this straight forward if you are on other filesystems like *btrfs* so make sure to check the Manjaro wiki in that case!
+
+3. Add `resume` parameter to `grub` bootloader (**Not neccessarily needed, the system can sometimes auto detect a previous hibernation!**)
+
+   Get the **UUID** of the swapfile:
+
+   ```sh
+   sudo blkid
+   # /dev/mapper/luks-2b42ed68-695e-40de-89a9-5529c6443177: UUID="28ded8b9-5fef-4e19-a03d-d0a72520a007" BLOCK_SIZE="4096" TYPE="ext4"
+   # /dev/nvme1n1p2: UUID="2b42ed68-695e-40de-89a9-5529c6443177" TYPE="crypto_LUKS" PARTLABEL="root" PARTUUID="4f28b7b0-dffd-cf4d-aba2-5ace144cd80a"
+   # /dev/nvme1n1p1: UUID="794A-9731" BLOCK_SIZE="512" TYPE="vfat" PARTUUID="3c72ba79-1956-cf44-9f6f-6a3db6c34a5
+   ```
+
+   In this case we see that the unlocked LUKS encrypted drive has the **UUID** `28ded8b9-5fef-4e19-a03d-d0a72520a007`.
+
+   Now we need to find out the offset:
+
+   ```sh
+   sudo filefrag -v /swapfile | awk '{if($1=="0:"){print $4}}' | sed 's/\.\.//'
+   # 153231360
+   ```
+
+   Using this information we can now edit the bootloader to point to the unlocked drive and the swapfile (using the offset):
+
+   ```sh
+   sudo nano /etc/default/grub
+   ```
+
+   Add to the line `GRUB_CMDLINE_LINUX_DEFAULT` at the end `resume=UUID=28ded8b9-5fef-4e19-a03d-d0a72520a007 resume_offset=153231360`.
+
+   Update grub:
+
+   ```sh
+   sudo update-grub
+   ```
+
+4. Make sure that initramfs includes resume support
+
+   ```sh
+   sudo nano /etc/mkinitcpio.conf
+   ```
+
+   Find the `HOOKS=` line and make sure it includes `resume` after `encrypt`:
+
+   ```text
+   HOOKS=(base udev autodetect modconf kms block keyboard keymap consolefont plymouth encrypt resume filesystems fsck)
+   ```
+
+   If `resume` was missing regenerate initramfs:
+
+   ```sh
+   sudo mkinitcpio -P
+   ```
+
+5. Restart your whole PC so the changes come into effect
+
+   On errors check for the `dmesg` logs:
+
+   ```sh
+   sudo dmesg | grep -iE 'hibernat|resume|swap|error'
+   ```
+
+   ```text
+   # sudo dmesg | grep -i resume (previous output of a failed hibernation)
+   [    0.000000] Command line: BOOT_IMAGE=/boot/vmlinuz-6.16-x86_64 root=UUID=28ded8b9-5fef-4e19-a03d-d0a72520a007 rw nvidia_drm.modeset=1 nvidia-drm.fbdev=1 quiet cryptdevice=UUID=2b42ed68-695e-40de-89a9-5529c6443177:luks-2b42ed68-695e-40de-89a9-5529c6443177 root=/dev/mapper/luks-2b42ed68-695e-40de-89a9-5529c6443177 splash udev.log_priority=3 resume=UUID=28ded8b9-5fef-4e19-a03d-d0a72520a007 resume_offset=153231360
+   [    0.028512] Kernel command line: BOOT_IMAGE=/boot/vmlinuz-6.16-x86_64 root=UUID=28ded8b9-5fef-4e19-a03d-d0a72520a007 rw nvidia_drm.modeset=1 nvidia-drm.fbdev=1 quiet cryptdevice=UUID=2b42ed68-695e-40de-89a9-5529c6443177:luks-2b42ed68-695e-40de-89a9-5529c6443177 root=/dev/mapper/luks-2b42ed68-695e-40de-89a9-5529c6443177 splash udev.log_priority=3 resume=UUID=28ded8b9-5fef-4e19-a03d-d0a72520a007 resume_offset=153231360
+   [    8.311035] PM: hibernation: resume from hibernation
+   [   12.840397] PM: hibernation: resume failed (-5)
+   ```
+
+   ```text
+   [    0.000000] Command line: BOOT_IMAGE=/boot/vmlinuz-6.16-x86_64 root=UUID=28ded8b9-5fef-4e19-a03d-d0a72520a007 rw nvidia_drm.modeset=1 nvidia-drm.fbdev=1 quiet cryptdevice=UUID=2b42ed68-695e-40de-89a9-5529c6443177:luks-2b42ed68-695e-40de-89a9-5529c6443177 root=/dev/mapper/luks-2b42ed68-695e-40de-89a9-5529c6443177 splash udev.log_priority=3 resume=UUID=28ded8b9-5fef-4e19-a03d-d0a72520a007 resume_offset=153231360
+   [    0.028143] Kernel command line: BOOT_IMAGE=/boot/vmlinuz-6.16-x86_64 root=UUID=28ded8b9-5fef-4e19-a03d-d0a72520a007 rw nvidia_drm.modeset=1 nvidia-drm.fbdev=1 quiet cryptdevice=UUID=2b42ed68-695e-40de-89a9-5529c6443177:luks-2b42ed68-695e-40de-89a9-5529c6443177 root=/dev/mapper/luks-2b42ed68-695e-40de-89a9-5529c6443177 splash udev.log_priority=3 resume=UUID=28ded8b9-5fef-4e19-a03d-d0a72520a007 resume_offset=153231360
+   [    0.082009] Spectre V1 : Mitigation: usercopy/swapgs barriers and __user pointer sanitization
+   [    0.839598] zswap: loaded using pool zstd/zsmalloc
+   [    0.842001] RAS: Correctable Errors collector initialized.
+   [    8.324123] PM: hibernation: resume from hibernation
+   [   12.026776] nvidia 0000:01:00.0: PM: failed to quiesce async: error -5
+   [   12.482600] PM: hibernation: resume failed (-5)
+   [   14.007605] systemd[1]: Clear Stale Hibernate Storage Info was skipped because of an unmet condition check (ConditionPathExists=/sys/firmware/efi/efivars/HibernateLocation-8cf2644b-4b0b-428f-9387-6d876050dc67).
+   [   14.028707] systemd[1]: Activating swap /swapfile...
+   [   14.046534] Adding 39845884k swap on /swapfile.  Priority:-2 extents:2320 across:974151680k SS
+   [   14.046559] systemd[1]: Activated swap /swapfile.
+   [   14.046583] systemd[1]: Reached target Swaps.
+   [   32.673457] ibus-x11[1593]: segfault at 1 ip 00007f5b9d323ac9 sp 00007ffd43dc89a8 error 4 in libgobject-2.0.so.0.8400.3[39ac9,7f5b9d2f6000+37000] likely on CPU 14 (core 6, socket 0)
+   ```
+
+   [**NVIDIA workarounds**](https://wiki.archlinux.org/title/NVIDIA/Tips_and_tricks): (all of them didn't work on one system, this is just here for reference)
+
+   ```sh
+   # Should already be enabled per default
+   sudo systemctl enable nvidia-hibernate.service
+   sudo systemctl enable nvidia-suspend.service
+   sudo systemctl enable nvidia-resume.service
+   ```
+
+   `/etc/modprobe.d/nvidia.conf`:
+
+   ```text
+   # Should already be enabled per default, still experimental
+   options nvidia NVreg_PreserveVideoMemoryAllocations=1
+   options nvidia NVreg_TemporaryFilePath=/var/tmp
+   ```
+
+6. Fix issues with in part working hibernations:
+
+   ```sh
+   sudo dmesg | grep -iE 'hibernat|resume|swap|error|nvidia'
+   ```
+
+   ```text
+   $ sudo dmesg | grep -iE 'hibernat|resume|swap|error|nvidia'
+   [    0.000000] Command line: BOOT_IMAGE=/boot/vmlinuz-6.16-x86_64 root=UUID=28ded8b9-5fef-4e19-a03d-d0a72520a007 rw quiet cryptdevice=UUID=2b42ed68-695e-40de-89a9-5529c6443177:luks-2b42ed68-695e-40de-89a9-5529c6443177 root=/dev/mapper/luks-2b42ed68-695e-40de-89a9-5529c6443177 splash udev.log_priority=3 resume=UUID=28ded8b9-5fef-4e19-a03d-d0a72520a007 resume_offset=20809728
+   [    0.024704] PM: hibernation: Registered nosave memory: [mem 0x00000000-0x00000fff]
+   [    0.024705] PM: hibernation: Registered nosave memory: [mem 0x000a0000-0x000fffff]
+   [    0.024706] PM: hibernation: Registered nosave memory: [mem 0x09e02000-0x09ffffff]
+   [    0.024706] PM: hibernation: Registered nosave memory: [mem 0x0a200000-0x0a20ffff]
+   [    0.024707] PM: hibernation: Registered nosave memory: [mem 0x0b000000-0x0b020fff]
+   [    0.024708] PM: hibernation: Registered nosave memory: [mem 0x81a46000-0x81aa2fff]
+   [    0.024708] PM: hibernation: Registered nosave memory: [mem 0x82bcc000-0x82bccfff]
+   [    0.024709] PM: hibernation: Registered nosave memory: [mem 0x8738f000-0x985fefff]
+   [    0.024710] PM: hibernation: Registered nosave memory: [mem 0x99ff9000-0x99ffbfff]
+   [    0.024710] PM: hibernation: Registered nosave memory: [mem 0x9a000000-0xffffffff]
+   [    0.028219] Kernel command line: BOOT_IMAGE=/boot/vmlinuz-6.16-x86_64 root=UUID=28ded8b9-5fef-4e19-a03d-d0a72520a007 rw quiet cryptdevice=UUID=2b42ed68-695e-40de-89a9-5529c6443177:luks-2b42ed68-695e-40de-89a9-5529c6443177 root=/dev/mapper/luks-2b42ed68-695e-40de-89a9-5529c6443177 splash udev.log_priority=3 resume=UUID=28ded8b9-5fef-4e19-a03d-d0a72520a007 resume_offset=20809728
+   [    0.081970] Spectre V1 : Mitigation: usercopy/swapgs barriers and __user pointer sanitization
+   [    0.792811] zswap: loaded using pool zstd/zsmalloc
+   [    0.795241] RAS: Correctable Errors collector initialized.
+   [    3.115538] nvidia: loading out-of-tree module taints kernel.
+   [    3.115544] nvidia: module license 'NVIDIA' taints kernel.
+   [    3.115548] nvidia: module verification failed: signature and/or required key missing - tainting kernel
+   [    3.115549] nvidia: module license taints kernel.
+   [    3.512704] nvidia-nvlink: Nvlink Core is being initialized, major device number 240
+   [    3.515236] nvidia 0000:01:00.0: vgaarb: VGA decodes changed: olddecodes=io+mem,decodes=none:owns=none
+   [    3.559404] NVRM: loading NVIDIA UNIX x86_64 Kernel Module  575.64.05  Fri Jul 18 16:01:21 UTC 2025
+   [    3.583414] nvidia-modeset: Loading NVIDIA Kernel Mode Setting Driver for UNIX platforms  575.64.05  Fri Jul 18 15:45:08 UTC 2025
+   [    3.589361] nvidia_uvm: module uses symbols nvUvmInterfaceDisableAccessCntr from proprietary module nvidia, inheriting taint.
+   [    3.685576] [drm] [nvidia-drm] [GPU ID 0x00000100] Loading driver
+   [    5.432757] [drm] Initialized nvidia-drm 0.0.0 for 0000:01:00.0 on minor 1
+   [    5.457539] nvidia 0000:01:00.0: vgaarb: deactivate vga console
+   [    5.565541] fbcon: nvidia-drmdrmfb (fb0) is primary device
+   [    5.565544] nvidia 0000:01:00.0: [drm] fb0: nvidia-drmdrmfb frame buffer device
+   [    7.391701] systemd[1]: Clear Stale Hibernate Storage Info was skipped because of an unmet condition check (ConditionPathExists=/sys/firmware/efi/efivars/HibernateLocation-8cf2644b-4b0b-428f-9387-6d876050dc67).
+   [    7.413905] systemd[1]: Activating swap /swapfile...
+   [    7.434153] Adding 67108860k swap on /swapfile.  Priority:-2 extents:2862 across:971309056k SS
+   [    7.434176] systemd[1]: Activated swap /swapfile.
+   [    7.434210] systemd[1]: Reached target Swaps.
+   [    7.844299] input: HDA NVidia HDMI/DP,pcm=3 as /devices/pci0000:00/0000:00:01.1/0000:01:00.1/sound/card1/input23
+   [    7.844361] input: HDA NVidia HDMI/DP,pcm=7 as /devices/pci0000:00/0000:00:01.1/0000:01:00.1/sound/card1/input24
+   [    7.844416] input: HDA NVidia HDMI/DP,pcm=8 as /devices/pci0000:00/0000:00:01.1/0000:01:00.1/sound/card1/input25
+   [    7.844455] input: HDA NVidia HDMI/DP,pcm=9 as /devices/pci0000:00/0000:00:01.1/0000:01:00.1/sound/card1/input26
+   [   39.222202] PM: hibernation: hibernation entry
+   [   39.335214] PM: hibernation: Marking nosave pages: [mem 0x00000000-0x00000fff]
+   [   39.335217] PM: hibernation: Marking nosave pages: [mem 0x000a0000-0x000fffff]
+   [   39.335219] PM: hibernation: Marking nosave pages: [mem 0x09e02000-0x09ffffff]
+   [   39.335224] PM: hibernation: Marking nosave pages: [mem 0x0a200000-0x0a20ffff]
+   [   39.335225] PM: hibernation: Marking nosave pages: [mem 0x0b000000-0x0b020fff]
+   [   39.335227] PM: hibernation: Marking nosave pages: [mem 0x81a46000-0x81aa2fff]
+   [   39.335229] PM: hibernation: Marking nosave pages: [mem 0x82bcc000-0x82bccfff]
+   [   39.335230] PM: hibernation: Marking nosave pages: [mem 0x8738f000-0x985fefff]
+   [   39.335266] PM: hibernation: Marking nosave pages: [mem 0x99ff9000-0x99ffbfff]
+   [   39.335267] PM: hibernation: Marking nosave pages: [mem 0x9a000000-0xffffffff]
+   [   39.335456] PM: hibernation: Basic memory bitmaps created
+   [   39.338552] PM: hibernation: Preallocating image memory
+   [   40.607541] PM: hibernation: Allocated 1985001 pages for snapshot
+   [   40.607547] PM: hibernation: Allocated 7940004 kbytes in 1.26 seconds (6301.59 MB/s)
+   [   41.371667] PM: hibernation: Creating image:
+   [   42.078790] PM: hibernation: Need to copy 1795628 pages
+   [   42.078794] PM: hibernation: Normal pages needed: 1795628 + 1024, available pages: 6487644
+   [   41.373801] ACPI: PM: Hardware changed while hibernated, success doubtful!
+   [   53.716339] PM: hibernation: Basic memory bitmaps freed
+   [   53.718847] PM: hibernation: hibernation exit
+   [   54.661257] NVRM: Xid (PCI:0000:01:00): 13, Graphics Exception: Shader Program Header 11 Error
+   [   54.661260] NVRM: Xid (PCI:0000:01:00): 13, Graphics Exception: Shader Program Header 18 Error
+   [   60.055681] NVRM: Xid (PCI:0000:01:00): 13, pid=1615, name=plasmashell, Graphics Exception: Shader Program Header 11 Error
+   [   60.055710] NVRM: Xid (PCI:0000:01:00): 13, pid=1615, name=plasmashell, Graphics Exception: Shader Program Header 18 Error
+   [   65.108850] NVRM: Xid (PCI:0000:01:00): 13, Graphics Exception: Shader Program Header 11 Error
+   [   65.108929] NVRM: Xid (PCI:0000:01:00): 13, Graphics Exception: Shader Program Header 18 Error
+   [   65.491952] NVRM: Xid (PCI:0000:01:00): 13, Graphics Exception: Shader Program Header 11 Error
+   [   65.492030] NVRM: Xid (PCI:0000:01:00): 13, Graphics Exception: Shader Program Header 18 Error
+   ```
+
+   - Sometimes `plasmashell`/`kwin` can die or break in parts after the hibernation which does not mean that the session is lost.
+
+     ```text
+     [   73.334184] PM: hibernation: hibernation exit
+     [   74.269496] NVRM: Xid (PCI:0000:01:00): 13, pid=1602, name=plasmashell, Graphics Exception: Shader Program Header 11 Error
+     [   74.269522] NVRM: Xid (PCI:0000:01:00): 13, pid=1602, name=plasmashell, Graphics Exception: Shader Program Header 18 Error
+     [   74.284077] NVRM: Xid (PCI:0000:01:00): 13, pid=1421, name=kwin_wayland, Graphics Exception: Shader Program Header 11 Error
+     [   74.284105] NVRM: Xid (PCI:0000:01:00): 13, pid=1421, name=kwin_wayland, Graphics Exception: Shader Program Header 18 Error
+     [   74.308891] NVRM: Xid (PCI:0000:01:00): 13, pid=2373, name=github-desktop, Graphics Exception: Shader Program Header 18 Error
+     [   74.758631] NVRM: Xid (PCI:0000:01:00): 13, Graphics Exception: Shader Program Header 11 Error
+     [   74.758637] NVRM: Xid (PCI:0000:01:00): 13, Graphics Exception: Shader Program Header 18 Error
+     [   82.776894] NVRM: Xid (PCI:0000:01:00): 13, Graphics Exception: Shader Program Header 11 Error
+     [   82.776901] NVRM: Xid (PCI:0000:01:00): 13, Graphics Exception: Shader Program Header 18 Error
+     ```
+
+     You can try restarting `plasmashell` by opening a terminal and entering the following command:
+
+     ```sh
+     plasmashell --replace &
+     # kf.dbusaddons: Failed to register name 'org.kde.plasmashell' with DBUS - does this process have permission to use the name, and do no other processes own it already?
+
+     # [1]  + exit 1     plasmashell --replace
+     ```
+
+     If you get the displayed output wait a maximum of around 30s and try again entering the same command.
+
+   - Electron applications becoming black windows: No solution yet
+
+### Verify that the NVIDIA GPU is preventing a successful hibernation
+
+In case you are wondering if the hibernation is only failing because of an NVIDIA graphics card error you can try switching to the integrated graphics card temporarily if you have one (following tutorial was done on a 7800X3D):
+
+1. Delete the file `/etc/X11/xorg.conf.d/90-mhwd.conf` (is not needed even when pluigging it in again later, just move it `/etc/X11/xorg.conf.d/90-mhwd.conf.backup` to have a backup)
+2. (Turn your PC off) Disconnect the power cable from NVIDIA GPU, plug in your display cables into the motherboard instead of the GPU
+3. In the BIOS:
+   1. Enable the IGPU (if it wasn't enabled already)
+   2. Set the IG adapter to IGD (was PEG) before that [EDIT: I also].
+
+```sh
+sudo dmesg | grep -iE 'hibernat|resume|swap|error'
+```
+
+```text
+[    0.027825] Kernel command line: BOOT_IMAGE=/boot/vmlinuz-6.16-x86_64 root=UUID=28ded8b9-5fef-4e19-a03d-d0a72520a007 rw nvidia_drm.modeset=1 nvidia-drm.fbdev=1 quiet cryptdevice=UUID=2b42ed68-695e-40de-89a9-5529c6443177:luks-2b42ed68-695e-40de-89a9-5529c6443177 root=/dev/mapper/luks-2b42ed68-695e-40de-89a9-5529c6443177 splash udev.log_priority=3 resume=UUID=28ded8b9-5fef-4e19-a03d-d0a72520a007 resume_offset=153231360
+[    0.080894] Spectre V1 : Mitigation: usercopy/swapgs barriers and __user pointer sanitization
+[    0.779449] zswap: loaded using pool zstd/zsmalloc
+[    0.781935] RAS: Correctable Errors collector initialized.
+[    7.027084] systemd[1]: Clear Stale Hibernate Storage Info was skipped because of an unmet condition check (ConditionPathExists=/sys/firmware/efi/efivars/HibernateLocation-8cf2644b-4b0b-428f-9387-6d876050dc67).
+[    7.041943] systemd[1]: Activating swap /swapfile...
+[    7.061630] Adding 39845884k swap on /swapfile.  Priority:-2 extents:2320 across:974151680k SS
+[    7.062265] systemd[1]: Activated swap /swapfile.
+[    7.062454] systemd[1]: Reached target Swaps.
+[    9.110549] amdgpu 0000:15:00.0: [drm] *ERROR* lttpr_caps phy_repeater_cnt is 0x0, forcing it to 0x80.
+[    9.110552] amdgpu 0000:15:00.0: [drm] *ERROR* LTTPR count is nonzero but invalid lane count reported. Assuming no LTTPR present.
+[    9.110554] amdgpu 0000:15:00.0: [drm] *ERROR* LTTPR count is nonzero but invalid lane count reported. Assuming no LTTPR present.
+[    9.144618] amdgpu 0000:15:00.0: [drm] *ERROR* LTTPR count is nonzero but invalid lane count reported. Assuming no LTTPR present.
+[    9.179071] amdgpu 0000:15:00.0: [drm] *ERROR* LTTPR count is nonzero but invalid lane count reported. Assuming no LTTPR present.
+[    9.179077] amdgpu 0000:15:00.0: [drm] *ERROR* LTTPR count is nonzero but invalid lane count reported. Assuming no LTTPR present.
+[    9.180103] amdgpu 0000:15:00.0: [drm] *ERROR* LTTPR count is nonzero but invalid lane count reported. Assuming no LTTPR present.
+[    9.187435] amdgpu 0000:15:00.0: [drm] *ERROR* LTTPR count is nonzero but invalid lane count reported. Assuming no LTTPR present.
+[    9.188500] amdgpu 0000:15:00.0: [drm] *ERROR* LTTPR count is nonzero but invalid lane count reported. Assuming no LTTPR present.
+[    9.565295] amdgpu 0000:15:00.0: [drm] *ERROR* LTTPR count is nonzero but invalid lane count reported. Assuming no LTTPR present.
+[    9.566363] amdgpu 0000:15:00.0: [drm] *ERROR* LTTPR count is nonzero but invalid lane count reported. Assuming no LTTPR present.
+[   15.582298] amdgpu 0000:15:00.0: [drm] *ERROR* LTTPR count is nonzero but invalid lane count reported. Assuming no LTTPR present.
+[   15.583368] amdgpu 0000:15:00.0: [drm] *ERROR* LTTPR count is nonzero but invalid lane count reported. Assuming no LTTPR present.
+[  522.583316] amdgpu 0000:15:00.0: [drm] *ERROR* LTTPR count is nonzero but invalid lane count reported. Assuming no LTTPR present.
+[  522.584385] amdgpu 0000:15:00.0: [drm] *ERROR* LTTPR count is nonzero but invalid lane count reported. Assuming no LTTPR present.
+[  573.497244] ACPI: PM: Hardware changed while hibernated, success doubtful!
+[  583.270862] amdgpu 0000:15:00.0: amdgpu: SMU is resumed successfully!
+[  583.275093] amdgpu 0000:15:00.0: [drm] *ERROR* lttpr_caps phy_repeater_cnt is 0x0, forcing it to 0x80.
+[  583.275095] amdgpu 0000:15:00.0: [drm] *ERROR* LTTPR count is nonzero but invalid lane count reported. Assuming no LTTPR present.
+[  583.325884] amdgpu 0000:15:00.0: [drm] *ERROR* lttpr_caps phy_repeater_cnt is 0x0, forcing it to 0x80.
+[  583.325885] amdgpu 0000:15:00.0: [drm] *ERROR* LTTPR count is nonzero but invalid lane count reported. Assuming no LTTPR present.
+[  583.325886] amdgpu 0000:15:00.0: [drm] *ERROR* LTTPR count is nonzero but invalid lane count reported. Assuming no LTTPR present.
+[  583.359947] amdgpu 0000:15:00.0: [drm] *ERROR* LTTPR count is nonzero but invalid lane count reported. Assuming no LTTPR present.
+[  583.393141] amdgpu 0000:15:00.0: [drm] *ERROR* LTTPR count is nonzero but invalid lane count reported. Assuming no LTTPR present.
+[  583.393766] amdgpu 0000:15:00.0: [drm] *ERROR* LTTPR count is nonzero but invalid lane count reported. Assuming no LTTPR present.
+[  583.394778] amdgpu 0000:15:00.0: [drm] *ERROR* LTTPR count is nonzero but invalid lane count reported. Assuming no LTTPR present.
+[  583.401538] amdgpu 0000:15:00.0: [drm] *ERROR* LTTPR count is nonzero but invalid lane count reported. Assuming no LTTPR present.
+[  583.402596] amdgpu 0000:15:00.0: [drm] *ERROR* LTTPR count is nonzero but invalid lane count reported. Assuming no LTTPR present.
+[  583.592826] amdgpu 0000:15:00.0: [drm] *ERROR* LTTPR count is nonzero but invalid lane count reported. Assuming no LTTPR present.
+[  583.593883] amdgpu 0000:15:00.0: [drm] *ERROR* LTTPR count is nonzero but invalid lane count reported. Assuming no LTTPR present.
+```
+
+A hibernation was successful in this case.
