@@ -732,7 +732,7 @@ Using a swap file the system memory can be stored on your disk so you can comple
    > [!Warning]
    > Apparently this is not always this straight forward if you are on other filesystems like *btrfs* so make sure to check the Manjaro wiki in that case!
 
-3. Add `resume` parameter to `grub` bootloader (**Not neccessarily needed, the system can sometimes auto detect a previous hibernation!**)
+3. Add `resume` parameter to `grub` bootloader
 
    Get the **UUID** of the swapfile:
 
@@ -758,7 +758,7 @@ Using a swap file the system memory can be stored on your disk so you can comple
    sudo nano /etc/default/grub
    ```
 
-   Add to the line `GRUB_CMDLINE_LINUX_DEFAULT` at the end `resume=UUID=28ded8b9-5fef-4e19-a03d-d0a72520a007 resume_offset=153231360`.
+   Add to the line `GRUB_CMDLINE_LINUX_DEFAULT` at the end `resume=UUID=28ded8b9-5fef-4e19-a03d-d0a72520a007 resume_offset=153231360` (with a space in front of it).
 
    Update grub:
 
@@ -929,15 +929,14 @@ Using a swap file the system memory can be stored on your disk so you can comple
      You can try restarting `plasmashell` by opening a terminal and entering the following command:
 
      ```sh
-     plasmashell --replace &
+     plasmashell --replace
      # kf.dbusaddons: Failed to register name 'org.kde.plasmashell' with DBUS - does this process have permission to use the name, and do no other processes own it already?
-
-     # [1]  + exit 1     plasmashell --replace
+     # exit 1
      ```
-
+     
      If you get the displayed output wait a maximum of around 30s and try again entering the same command.
 
-   - Electron applications becoming black windows: No solution yet
+   - Electron applications becoming black windows: No solution yet besides restarting the application
 
 ### Verify that the NVIDIA GPU is preventing a successful hibernation
 
