@@ -2,11 +2,42 @@
 
 Step by step description on how to setup Manjaro KDE.
 
----
+> [!IMPORTANT]
+> THERE IS NO GUARANTEE THAT NOTHING GOES WRONG SO BE CAREFUL AND IF YOU ARE UNSURE RESEARCH WHAT A CERTAIN STEP MEANS!
 
-IMPORTANT: THERE IS NO GUARANTEE THAT NOTHING GOES WRONG SO BE CAREFUL AND IF YOU ARE UNSURE RESEARCH WHAT A CERTAIN STEP MEANS!
+<!-- TOC -->
 
----
+- [1. Create a from the motherboard bootable USB stick](#1-create-a-from-the-motherboard-bootable-usb-stick)
+- [2. Now reboot your PC and start the Manjaro on the USB stick](#2-now-reboot-your-pc-and-start-the-manjaro-on-the-usb-stick)
+- [3. Prepare your installation drive](#3-prepare-your-installation-drive)
+- [4. Follow the steps of the official installer](#4-follow-the-steps-of-the-official-installer)
+- [5. Finalize installation](#5-finalize-installation)
+- [6. Enable AUR/3rd-party package support](#6-enable-aur3rd-party-package-support)
+- [7. Configure KDE](#7-configure-kde)
+- [8. Install programs](#8-install-programs)
+   - [8.1. Printing](#81-printing)
+   - [8.2. General runtimes](#82-general-runtimes)
+   - [8.3. Tune CPU](#83-tune-cpu)
+   - [8.4. Microphone noise cancelling](#84-microphone-noise-cancelling)
+   - [8.5. Camera controls](#85-camera-controls)
+   - [8.6. Gaming](#86-gaming)
+   - [8.7. Cloud Storage](#87-cloud-storage)
+- [9. Wayland](#9-wayland)
+- [10. VPNs](#10-vpns)
+   - [10.1. (KDE) OpenVPN (.ovpn))](#101-kde-openvpn-ovpn)
+- [11. Services](#11-services)
+   - [11.1. systemdd](#111-systemdd)
+   - [11.2. dbuss](#112-dbuss)
+- [12. More](#12-more)
+- [13. Encryption](#13-encryption)
+   - [13.1. Add an additional drive to automatically decrypt and mount on start](#131-add-an-additional-drive-to-automatically-decrypt-and-mount-on-start)
+- [14. Display Scaling](#14-display-scaling)
+   - [14.1. Login Screen (SDDM) Scaling](#141-login-screen-sddm-scaling)
+- [15. Swap File](#15-swap-file)
+   - [15.1. Verify that the NVIDIA GPU is preventing a successful hibernation](#151-verify-that-the-nvidia-gpu-is-preventing-a-successful-hibernation)
+- [16. Resolve KDE Desktop Propblems like freezing on startup](#16-resolve-kde-desktop-propblems-like-freezing-on-startup)
+
+<!-- /TOC -->
 
 ## 1. Create a from the motherboard bootable USB stick
 
@@ -298,14 +329,14 @@ pamac install flatpak libpamac-flatpak-plugin
 
 ## 8. Install programs
 
-### Printing
+### 8.1. Printing
 
 ```sh
 # Scan pages to images/PDF files
 sudo pacman -S gscan2pdf
 ```
 
-### General runtimes
+### 8.2. General runtimes
 
 ```sh
 # JAVA
@@ -316,7 +347,7 @@ sudo pacman -S python
 sudo pacman -S nodejs
 ```
 
-### Tune CPU
+### 8.3. Tune CPU
 
 ```sh
 # You can configure the CPU to not run in a powersave
@@ -326,7 +357,7 @@ yay -S corectrl
 
 This will result in a much higher power usage when doing non intensive tasks so only do it if you actually see a difference in performance or only enable it while you need high performance.
 
-### Microphone noise cancelling
+### 8.4. Microphone noise cancelling
 
 ```sh
 # You can create a new virtual microphone based on an
@@ -334,7 +365,7 @@ This will result in a much higher power usage when doing non intensive tasks so 
 yay -S noisetorch
 ```
 
-### Camera controls
+### 8.5. Camera controls
 
 ```sh
 # You can configure camera zoom, focus etc. with a desktop UI that also has a preview window
@@ -342,7 +373,7 @@ yay -S noisetorch
 sudo pacman -S cameractrls
 ```
 
-### Gaming
+### 8.6. Gaming
 
 ```sh
 # Steam (Don't forget to go into the settings and
@@ -358,7 +389,7 @@ sudo pacman -S mangohud gamemode
 yay -S goverlay
 ```
 
-### Cloud Storage
+### 8.7. Cloud Storage
 
 ```sh
 # OneDrive
@@ -369,7 +400,7 @@ yay -S goverlay
 yay -S onedrive-abraunegg
 ```
 
-## Wayland
+## 9. Wayland
 
 > [!Tip]
 > Nowadays it should just work out of the box.
@@ -394,9 +425,9 @@ To enable Wayland check [this article](https://community.kde.org/Plasma/Wayland/
 >
 > This also means you do not need to update `grub`.
 
-## VPNs
+## 10. VPNs
 
-### (KDE) OpenVPN (`.ovpn`)
+### 10.1. (KDE) OpenVPN (.ovpn)`)
 
 If the connection always fails (without error message) enter `journalctl -f` and then check the output after trying to connect once more.
 If this shows errors that try to invoke a `tun` module enter `modinfo tun` in the terminal and check if `modinfo: ERROR: Module tun not found` is the output.
@@ -430,9 +461,9 @@ It's also possible to permanently load the module on every start by adding it to
 echo tun | sudo tee -a /etc/modules-load.d/tun.conf
 ```
 
-## Services
+## 11. Services
 
-### `systemd`
+### 11.1. systemdd`
 
 Sometimes programs (e.g. Docker) are managed by a `systemd` integration meaning they for example auto start on login or when they crash.
 
@@ -453,7 +484,7 @@ sudo systemctl status docker
 sudo systemctl is-enabled docker
 ```
 
-### `dbus`
+### 11.2. dbuss`
 
 Sometimes programs (e.g. Nextcloud) are managed by a `dbus` integration instead of `systemd` meaning they for example auto restart after you close them.
 To stop this you need to do the following:
@@ -463,12 +494,12 @@ sudo mv /usr/share/dbus-1/services/com.nextcloudgmbh.Nextcloud.service /usr/shar
 # Then close/kill the program and it won't automatically restart
 ```
 
-## More
+## 12. More
 
 - To get a "boot" screen where you can switch kernels or do more advanced stuff before actually launching Manjaro/*the Linux kernel* you need to hold the `SHIFT` key after the BIOS prompt
   - This can be helpful if for example an external hard drive is not detected any more but was detected on a previous Linux kernel
 
-## Encryption
+## 13. Encryption
 
 A LUKS encrypted drive Linux drive stores the actual filesystem inside an **encrypted LUKS container**:
 
@@ -485,7 +516,7 @@ A LUKS encrypted drive Linux drive stores the actual filesystem inside an **encr
     - `/etc/crypttab`: what to unlock
     - `/etc/fstab`: what to mount
 
-### Add an additional drive to automatically decrypt and mount on start
+### 13.1. Add an additional drive to automatically decrypt and mount on start
 
 1. Identify the new encrypted drive
    - Run:
@@ -593,9 +624,9 @@ A LUKS encrypted drive Linux drive stores the actual filesystem inside an **encr
 Now when restarting your PC it will automatically decrypt the encrypted drive and mount the read filesystem at `/mnt/data_drive_2025`.
 If your drive is not encrypted you can just follow step 3.
 
-## Display Scaling
+## 14. Display Scaling
 
-### Login Screen (SDDM) Scaling
+### 14.1. Login Screen (SDDM) Scaling
 
 Assuming you have a 4K display connected it can happen that your login screen looks tiny since it isn't scaled (like 200% on your actual plasma session).
 
@@ -645,7 +676,7 @@ Assuming you have a 4K display connected it can happen that your login screen lo
 
      The login screen will now be scaled times 2 during the rendering, but this will happen for all screens so if you have different resolutions this may look bad on lower resolution screens.
 
-## Swap File
+## 15. Swap File
 
 Using a swap file the system memory can be stored on your disk so you can completely shut down your PC (*hibernate*) and can then on the next normal start load it to be right back where you left.
 
@@ -938,7 +969,7 @@ Using a swap file the system memory can be stored on your disk so you can comple
 
    - Electron applications becoming black windows: No solution yet besides restarting the application
 
-### Verify that the NVIDIA GPU is preventing a successful hibernation
+### 15.1. Verify that the NVIDIA GPU is preventing a successful hibernation
 
 In case you are wondering if the hibernation is only failing because of an NVIDIA graphics card error you can try switching to the integrated graphics card temporarily if you have one (following tutorial was done on a 7800X3D):
 
@@ -995,3 +1026,17 @@ sudo dmesg | grep -iE 'hibernat|resume|swap|error'
 ```
 
 A hibernation was successful in this case.
+
+## 16. Resolve KDE Desktop Propblems like freezing on startup
+
+You may encounter after some time of use weird glitches like for example a random 30s freeze after login for no reason.
+If you don't wanna debug what exactly the error is a *quick fix* would be to just clear the current configuration:
+
+> [!WARNING]
+> This will clear your pinned programs from the *Task Manager*/panel and have other minor side effects!
+
+```sh
+cd ~/.config/
+for j in plasma*; do mv -- "$j" "${j%}.bak"; done
+rm -rf ~/.cache/*
+```
